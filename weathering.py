@@ -7,10 +7,16 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import numpy as np
 import joblib
+import gzip
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+
+# Helper function untuk RMSE
+def calculate_rmse(y_true, y_pred):
+    """Calculate Root Mean Squared Error"""
+    return np.sqrt(mean_squared_error(y_true, y_pred))
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -83,10 +89,10 @@ def load_data(path="weather_bandung_2020_2025_clean_data.xlsx"):
 # Load atau train model
 @st.cache_resource
 def load_or_train_model(df):
-    model_path = "rf_multi_weather_model.joblib"
+    model_path = "rf_multi_weather_model_compressed.joblib.gz"
     
     try:
-        # Coba load model yang sudah ada
+        # Coba load model yang sudah ada (compressed format)
         model_data = joblib.load(model_path)
         
         # Handle berbagai format model
@@ -148,30 +154,30 @@ def load_or_train_model(df):
         y_pred = model.predict(X_test)
         metrics = {
             'T2M': {
-                'RMSE': mean_squared_error(y_test['T2M'], y_pred[:, 0], squared=False),
+                'RMSE': calculate_rmse(y_test['T2M'], y_pred[:, 0]),
                 'MAE': mean_absolute_error(y_test['T2M'], y_pred[:, 0]),
                 'R2': r2_score(y_test['T2M'], y_pred[:, 0])
             },
             'PRECTOTCORR': {
-                'RMSE': mean_squared_error(y_test['PRECTOTCORR'], y_pred[:, 1], squared=False),
+                'RMSE': calculate_rmse(y_test['PRECTOTCORR'], y_pred[:, 1]),
                 'MAE': mean_absolute_error(y_test['PRECTOTCORR'], y_pred[:, 1]),
                 'R2': r2_score(y_test['PRECTOTCORR'], y_pred[:, 1])
             },
             'RH2M': {
-                'RMSE': mean_squared_error(y_test['RH2M'], y_pred[:, 2], squared=False),
+                'RMSE': calculate_rmse(y_test['RH2M'], y_pred[:, 2]),
                 'MAE': mean_absolute_error(y_test['RH2M'], y_pred[:, 2]),
                 'R2': r2_score(y_test['RH2M'], y_pred[:, 2])
             }
         }
         
-        # Simpan model
+        # Simpan model (compressed format)
         model_data = {
             'model': model,
             'feature_names': X_multi.columns.tolist(),
             'target_names': y_multi.columns.tolist(),
             'metrics': metrics
         }
-        joblib.dump(model_data, model_path)
+        joblib.dump(model_data, model_path, compress=('gzip', 3))
         st.sidebar.success(f"✅ Model baru berhasil dilatih dan disimpan ke {model_path}")
         
         return model, X_multi.columns.tolist(), y_multi.columns.tolist(), metrics
@@ -206,17 +212,17 @@ def load_or_train_model(df):
         y_pred = model.predict(X_test)
         metrics = {
             'T2M': {
-                'RMSE': mean_squared_error(y_test['T2M'], y_pred[:, 0], squared=False),
+                'RMSE': calculate_rmse(y_test['T2M'], y_pred[:, 0]),
                 'MAE': mean_absolute_error(y_test['T2M'], y_pred[:, 0]),
                 'R2': r2_score(y_test['T2M'], y_pred[:, 0])
             },
             'PRECTOTCORR': {
-                'RMSE': mean_squared_error(y_test['PRECTOTCORR'], y_pred[:, 1], squared=False),
+                'RMSE': calculate_rmse(y_test['PRECTOTCORR'], y_pred[:, 1]),
                 'MAE': mean_absolute_error(y_test['PRECTOTCORR'], y_pred[:, 1]),
                 'R2': r2_score(y_test['PRECTOTCORR'], y_pred[:, 1])
             },
             'RH2M': {
-                'RMSE': mean_squared_error(y_test['RH2M'], y_pred[:, 2], squared=False),
+                'RMSE': calculate_rmse(y_test['RH2M'], y_pred[:, 2]),
                 'MAE': mean_absolute_error(y_test['RH2M'], y_pred[:, 2]),
                 'R2': r2_score(y_test['RH2M'], y_pred[:, 2])
             }
@@ -604,12 +610,19 @@ with tab6:
     
     # Informasi Model
     st.markdown("""
-    <div style="background-color: black; color: white; padding: 15px; border-radius: 8px;">
-        <strong>ℹ️ Tentang Model Prediksi:</strong>
+    <div style="
+        background-color: black; 
+        color: white; 
+        padding: 15px; 
+        border-radius: 8px;
+        font-family: Arial, sans-serif;
+    ">
+        <h4>ℹ️ Tentang Model Prediksi:</h4>
         <ul>
-            <li><strong>Algoritma</strong>: Multi-target Random Forest Regressor</li>
-            <li><strong>Target Prediksi</strong>: Suhu (T2M), Curah Hujan (PRECTOTCORR), Kelembaban (RH2M)</li>
-            <li><strong>Fitur Input</strong>: Parameter cuaca lainnya (angin, radiasi, tekanan, dll)</li>
+            <li><b>Algoritma</b>: Multi-target Random Forest Regressor</li>
+            <li><b>Target Prediksi</b>: Suhu (T2M), Curah Hujan (PRECTOTCORR), Kelembaban (RH2M)</li>
+            <li><b>Fitur Input</b>: Parameter cuaca lainnya (angin, radiasi, tekanan, dll)</li>
+            <li><b>File Model</b>: rf_multi_weather_model_compressed.joblib.gz (compressed format)</li>
         </ul>
     </div>
     """, unsafe_allow_html=True)
@@ -990,12 +1003,20 @@ with tab7:
     st.markdown("### 📖 Kamus Data & Dokumentasi")
     
     st.markdown("""
-<div class="info-box" style="background-color: black; color: white; padding: 15px; border-radius: 8px;">
-    <h4>ℹ️ Tentang Dataset</h4>
-    Dataset ini berisi data cuaca harian untuk kota Bandung yang bersumber dari <strong>NASA POWER</strong> 
-    (Prediction of Worldwide Energy Resources), mencakup berbagai parameter meteorologi dan radiasi matahari 
-    dari tahun 2000 hingga 2025.
-</div>
+    <div style="
+        background-color: black; 
+        color: white; 
+        padding: 15px; 
+        border-radius: 8px;
+        font-family: Arial, sans-serif;
+    ">
+        <h4>ℹ️ Tentang Dataset</h4>
+        <p>
+            Dataset ini berisi data cuaca harian untuk kota Bandung yang bersumber dari 
+            <strong>NASA POWER</strong> (Prediction of Worldwide Energy Resources), mencakup berbagai 
+            parameter meteorologi dan radiasi matahari dari tahun 2000 hingga 2025.
+        </p>
+    </div>
     """, unsafe_allow_html=True)
     
     st.markdown("---")
