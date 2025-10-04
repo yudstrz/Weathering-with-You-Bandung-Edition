@@ -128,11 +128,25 @@ def load_or_train_model(df, model_path="rf_multi_weather_model_compressed.joblib
         ).columns.tolist()
         target_names = ["T2M", "PRECTOTCORR", "RH2M"]
 
-        # Prediksi untuk evaluasi
+# Prediksi untuk evaluasi
         X_multi = df[feature_names]
         y_multi = df[target_names]
         X_train, X_test, y_train, y_test = train_test_split(X_multi, y_multi, test_size=0.2, random_state=42)
         y_pred = model.predict(X_test)
+        
+        # Hitung metrics untuk setiap target
+        mae_temp = mean_absolute_error(y_test.iloc[:, 0], y_pred[:, 0])
+        rmse_temp = calculate_rmse(y_test.iloc[:, 0], y_pred[:, 0])
+        r2_temp = r2_score(y_test.iloc[:, 0], y_pred[:, 0])
+        
+        mae_rain = mean_absolute_error(y_test.iloc[:, 1], y_pred[:, 1])
+        rmse_rain = calculate_rmse(y_test.iloc[:, 1], y_pred[:, 1])
+        r2_rain = r2_score(y_test.iloc[:, 1], y_pred[:, 1])
+        
+        mae_hum = mean_absolute_error(y_test.iloc[:, 2], y_pred[:, 2])
+        rmse_hum = calculate_rmse(y_test.iloc[:, 2], y_pred[:, 2])
+        r2_hum = r2_score(y_test.iloc[:, 2], y_pred[:, 2])
+        
         metrics = {
             "T2M": {"MAE": mae_temp, "RMSE": rmse_temp, "R2": r2_temp},
             "PRECTOTCORR": {"MAE": mae_rain, "RMSE": rmse_rain, "R2": r2_rain},
@@ -1307,5 +1321,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
