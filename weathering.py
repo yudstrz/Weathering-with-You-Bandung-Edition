@@ -134,8 +134,9 @@ def load_or_train_model(df, model_path="rf_multi_weather_model_compressed.joblib
         X_train, X_test, y_train, y_test = train_test_split(X_multi, y_multi, test_size=0.2, random_state=42)
         y_pred = model.predict(X_test)
         metrics = {
-            'MAE': mean_absolute_error(y_test, y_pred),
-            'RMSE': calculate_rmse(y_test, y_pred)
+            "T2M": {"MAE": mae_temp, "RMSE": rmse_temp, "R2": r2_temp},
+            "PRECTOTCORR": {"MAE": mae_rain, "RMSE": rmse_rain, "R2": r2_rain},
+            "RH2M": {"MAE": mae_hum, "RMSE": rmse_hum, "R2": r2_hum}
         }
 
         st.sidebar.success("✅ Model berhasil dimuat dari file")
@@ -1306,4 +1307,5 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
