@@ -201,7 +201,7 @@ st.markdown("---")
 
 # Sidebar dengan styling lebih baik
 with st.sidebar:
-    st.image("https://api.dicebear.com/7.x/shapes/svg?seed=weather", width=100)
+    st.image("https://www.flaticon.com/free-icon/weather-forecast_9176568?term=weather&page=1&position=28&origin=search&related_id=9176568", width=100)
     st.markdown("## 🎛️ Pengaturan Dashboard")
     
     # Filter Tahun
@@ -1321,6 +1321,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
 
