@@ -1316,11 +1316,12 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #6B7280; padding: 1rem;'>
-        Made with ❤️ using Streamlit | Dashboard Cuaca Bandung v2.0 | Powered by Random Forest ML
+        Made with using Streamlit | Dashboard Cuaca Bandung | Powered by Random Forest ML
     </div>
     """,
     unsafe_allow_html=True
 )
+
 
 
 
