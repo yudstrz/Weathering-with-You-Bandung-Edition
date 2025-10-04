@@ -87,147 +87,89 @@ def load_data(path="weather_bandung_2020_2025_clean_data.xlsx"):
         return None
 
 # Load atau train model
+import streamlit as st
+import pandas as pd
+import numpy as np
+import joblib
+import gzip
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.multioutput import MultiOutputRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+
+# =========================
+# Fungsi helper RMSE
+# =========================
+def calculate_rmse(y_true, y_pred):
+    return np.sqrt(mean_squared_error(y_true, y_pred))
+
+# =========================
+# Fungsi load dataset
+# =========================
+@st.cache_data
+def load_data(path="weather_bandung_2020_2025_clean_data.xlsx"):
+    df = pd.read_excel(path)
+    df = df.dropna()
+    return df
+
+# =========================
+# Fungsi load atau train model (versi sama seperti kode asli)
+# =========================
 @st.cache_resource
-def load_or_train_model(df):
-    model_path = "rf_multi_weather_model_compressed.joblib.gz"
-    
+def load_or_train_model(df, model_path="rf_multi_weather_model_compressed.joblib.gz"):
     try:
-        # Coba load model yang sudah ada (compressed format)
-        model_data = joblib.load(model_path)
-        
-        # Handle berbagai format model
-        if isinstance(model_data, dict):
-            model = model_data['model']
-            feature_names = model_data['feature_names']
-            target_names = model_data['target_names']
-            metrics = model_data.get('metrics', {})
-        else:
-            # Jika model_data adalah model langsung
-            model = model_data
-            # Coba ambil feature names dari model
-            if hasattr(model, 'feature_names_in_'):
-                feature_names = model.feature_names_in_.tolist()
-            else:
-                # Fallback: gunakan kolom numerik dari df
-                feature_names = df.select_dtypes(include=[np.number]).drop(
-                    columns=["T2M", "PRECTOTCORR", "RH2M"], errors='ignore'
-                ).columns.tolist()
-            
-            target_names = ["T2M", "PRECTOTCORR", "RH2M"]
-            metrics = {}
-        
+        # Coba load model gzip
+        with gzip.open(model_path, "rb") as f:
+            model = joblib.load(f)
+
+        # Ambil feature dan target names dari dataframe
+        feature_names = df.select_dtypes(include=[np.number]).drop(
+            columns=["T2M", "PRECTOTCORR", "RH2M"], errors='ignore'
+        ).columns.tolist()
+        target_names = ["T2M", "PRECTOTCORR", "RH2M"]
+
+        # Prediksi untuk evaluasi
+        X_multi = df[feature_names]
+        y_multi = df[target_names]
+        X_train, X_test, y_train, y_test = train_test_split(X_multi, y_multi, test_size=0.2, random_state=42)
+        y_pred = model.predict(X_test)
+        metrics = {
+            'MAE': mean_absolute_error(y_test, y_pred),
+            'RMSE': calculate_rmse(y_test, y_pred)
+        }
+
         st.sidebar.success("✅ Model berhasil dimuat dari file")
         return model, feature_names, target_names, metrics
-        
-    except FileNotFoundError:
-        st.sidebar.warning("⚠️ Model tidak ditemukan, melatih model baru...")
-        
-        # Persiapkan data
-        X_multi = df.select_dtypes(include=[np.number]).drop(columns=["T2M", "PRECTOTCORR", "RH2M"], errors='ignore')
+
+    except (FileNotFoundError, EOFError, OSError) as e:
+        st.sidebar.warning(f"⚠️ Model tidak ditemukan atau gagal load ({str(e)}), melatih model baru...")
+
+        X_multi = df.select_dtypes(include=[np.number]).drop(
+            columns=["T2M", "PRECTOTCORR", "RH2M"], errors='ignore'
+        )
         y_multi = df[["T2M", "PRECTOTCORR", "RH2M"]]
-        
-        # Hapus baris dengan nilai null
-        valid_idx = X_multi.notna().all(axis=1) & y_multi.notna().all(axis=1)
-        X_multi = X_multi[valid_idx]
-        y_multi = y_multi[valid_idx]
-        
+
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(
             X_multi, y_multi, test_size=0.2, random_state=42
         )
-        
-        # Train model
-        from sklearn.multioutput import MultiOutputRegressor
-        base_model = RandomForestRegressor(
-            n_estimators=100,
-            max_depth=15,
-            min_samples_split=5,
-            random_state=42,
-            n_jobs=-1
-        )
-        model = MultiOutputRegressor(base_model)
-        
+
+        # Train model persis seperti kode asli
+        model = MultiOutputRegressor(RandomForestRegressor(n_estimators=100, random_state=42))
         with st.spinner("Melatih model Random Forest..."):
             model.fit(X_train, y_train)
-        
+
         # Evaluasi
         y_pred = model.predict(X_test)
-        metrics = {
-            'T2M': {
-                'RMSE': calculate_rmse(y_test['T2M'], y_pred[:, 0]),
-                'MAE': mean_absolute_error(y_test['T2M'], y_pred[:, 0]),
-                'R2': r2_score(y_test['T2M'], y_pred[:, 0])
-            },
-            'PRECTOTCORR': {
-                'RMSE': calculate_rmse(y_test['PRECTOTCORR'], y_pred[:, 1]),
-                'MAE': mean_absolute_error(y_test['PRECTOTCORR'], y_pred[:, 1]),
-                'R2': r2_score(y_test['PRECTOTCORR'], y_pred[:, 1])
-            },
-            'RH2M': {
-                'RMSE': calculate_rmse(y_test['RH2M'], y_pred[:, 2]),
-                'MAE': mean_absolute_error(y_test['RH2M'], y_pred[:, 2]),
-                'R2': r2_score(y_test['RH2M'], y_pred[:, 2])
-            }
-        }
-        
-        # Simpan model (compressed format)
-        model_data = {
-            'model': model,
-            'feature_names': X_multi.columns.tolist(),
-            'target_names': y_multi.columns.tolist(),
-            'metrics': metrics
-        }
-        joblib.dump(model_data, model_path, compress=('gzip', 3))
+        mae = mean_absolute_error(y_test, y_pred)
+        rmse = calculate_rmse(y_test, y_pred)
+        metrics = {'MAE': mae, 'RMSE': rmse}
+
+        # Simpan model gzip
+        with gzip.open(model_path, 'wb') as f:
+            joblib.dump(model, f, compress=3)
+
         st.sidebar.success(f"✅ Model baru berhasil dilatih dan disimpan ke {model_path}")
-        
-        return model, X_multi.columns.tolist(), y_multi.columns.tolist(), metrics
-    
-    except Exception as e:
-        st.sidebar.error(f"❌ Error saat load model: {str(e)}")
-        st.sidebar.info("Mencoba melatih model baru...")
-        
-        # Fallback: train model baru
-        X_multi = df.select_dtypes(include=[np.number]).drop(columns=["T2M", "PRECTOTCORR", "RH2M"], errors='ignore')
-        y_multi = df[["T2M", "PRECTOTCORR", "RH2M"]]
-        
-        valid_idx = X_multi.notna().all(axis=1) & y_multi.notna().all(axis=1)
-        X_multi = X_multi[valid_idx]
-        y_multi = y_multi[valid_idx]
-        
-        X_train, X_test, y_train, y_test = train_test_split(
-            X_multi, y_multi, test_size=0.2, random_state=42
-        )
-        
-        from sklearn.multioutput import MultiOutputRegressor
-        base_model = RandomForestRegressor(
-            n_estimators=100,
-            max_depth=15,
-            min_samples_split=5,
-            random_state=42,
-            n_jobs=-1
-        )
-        model = MultiOutputRegressor(base_model)
-        model.fit(X_train, y_train)
-        
-        y_pred = model.predict(X_test)
-        metrics = {
-            'T2M': {
-                'RMSE': calculate_rmse(y_test['T2M'], y_pred[:, 0]),
-                'MAE': mean_absolute_error(y_test['T2M'], y_pred[:, 0]),
-                'R2': r2_score(y_test['T2M'], y_pred[:, 0])
-            },
-            'PRECTOTCORR': {
-                'RMSE': calculate_rmse(y_test['PRECTOTCORR'], y_pred[:, 1]),
-                'MAE': mean_absolute_error(y_test['PRECTOTCORR'], y_pred[:, 1]),
-                'R2': r2_score(y_test['PRECTOTCORR'], y_pred[:, 1])
-            },
-            'RH2M': {
-                'RMSE': calculate_rmse(y_test['RH2M'], y_pred[:, 2]),
-                'MAE': mean_absolute_error(y_test['RH2M'], y_pred[:, 2]),
-                'R2': r2_score(y_test['RH2M'], y_pred[:, 2])
-            }
-        }
-        
         return model, X_multi.columns.tolist(), y_multi.columns.tolist(), metrics
 
 df = load_data()
@@ -1364,3 +1306,4 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
