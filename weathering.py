@@ -201,7 +201,10 @@ st.markdown("---")
 
 # Sidebar dengan styling lebih baik
 with st.sidebar:
-    st.image("https://api.dicebear.com/7.x/shapes/svg?seed=weather", width=100)
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.image("assets/meteorology.png", width=100)
+
     st.markdown("## 🎛️ Pengaturan Dashboard")
     
     # Filter Tahun
@@ -1321,6 +1324,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 
 
 
