@@ -941,7 +941,7 @@ with tab7:
         <p>
             This dataset contains daily weather data for the city of Bandung, sourced from 
             <strong>NASA POWER</strong> (Prediction of Worldwide Energy Resources). It covers various 
-            meteorological and solar radiation parameters from the year 2000 to 2025.
+            meteorological and solar radiation parameters from the year 2020 to 2025.
         </p>
     </div>
     """, unsafe_allow_html=True)
