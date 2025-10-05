@@ -168,7 +168,7 @@ if df is None:
 model, feature_names, target_names, metrics = load_or_train_model(df)
 
 # Header
-st.markdown('<h1 class="main-header">🌤 Bandung Weather & Climate Dashboard (2000–2025)</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-header">🌤 Bandung Weather & Climate Dashboard (2020–2025)</h1>', unsafe_allow_html=True)
 st.markdown("---")
 
 # Sidebar with improved styling
